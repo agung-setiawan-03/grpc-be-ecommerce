@@ -4,14 +4,18 @@ package service;
 
 option go_package= "github.com/AgungSetiawan/grpc-be-ecommerce/pb/service";
 
+import "common/base_response.proto";
+import "buf/validate/validate.proto";
+
 service HelloWorldService {
     rpc HelloWorld(HelloWorldRequest) returns (HelloWorldResponse);
 }
 
 message HelloWorldRequest {
-    string name = 1;
+    string name = 1 [(buf.validate.field).string = {min_len: 1, max_len: 100}];
 }
 
 message HelloWorldResponse {
-    string message = 1;
+    common.BaseResponse base = 1;
+    string message = 2;
 }
