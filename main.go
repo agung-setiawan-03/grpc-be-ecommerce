@@ -7,12 +7,12 @@ import (
 	"os"
 	"time"
 
+	"github.com/AgungSetiawan/grpc-be-ecommerce/internal/grpcmiddleware"
 	"github.com/AgungSetiawan/grpc-be-ecommerce/internal/handler"
 	"github.com/AgungSetiawan/grpc-be-ecommerce/internal/repository"
 	"github.com/AgungSetiawan/grpc-be-ecommerce/internal/service"
 	"github.com/AgungSetiawan/grpc-be-ecommerce/pb/auth"
 	"github.com/AgungSetiawan/grpc-be-ecommerce/pkg/database"
-	"github.com/AgungSetiawan/grpc-be-ecommerce/pkg/grpcmiddleware"
 	"github.com/joho/godotenv"
 	gocache "github.com/patrickmn/go-cache"
 	"google.golang.org/grpc"
@@ -30,7 +30,9 @@ func main() {
 	db := database.ConnectDB(ctx, os.Getenv("DB_URL"))
 	log.Println("Connected to database")
 
-	cacheService := gocache.New(time.Hour * 24, time.Hour)
+	cacheService := gocache.New(time.Hour*24, time.Hour)
+
+	authMiddleware := grpcmiddleware.NewAuthMiddleware(cacheService)
 
 	authRepository := repository.NewAuthRepository(db)
 	authService := service.NewAuthService(authRepository, cacheService)
@@ -39,6 +41,7 @@ func main() {
 	serv := grpc.NewServer(
 		grpc.ChainUnaryInterceptor(
 			grpcmiddleware.ErrMiddleware,
+			authMiddleware.AuthMiddleware,
 		),
 	)
 
