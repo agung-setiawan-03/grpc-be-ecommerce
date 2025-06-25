@@ -19,7 +19,7 @@ type authRepository struct {
 
 func (ar *authRepository) GetUserByEmail(ctx context.Context, email string) (*entity.User, error) {
 	row := ar.db.QueryRowContext(ctx,
-		"SELECT id, email, password, full_name FROM \"user\" WHERE email = $1 AND is_deleted IS false",
+		"SELECT id, email, password, full_name, role_code FROM \"user\" WHERE email = $1 AND is_deleted IS false",
 		email)
 
 	if row.Err() != nil {
@@ -32,6 +32,7 @@ func (ar *authRepository) GetUserByEmail(ctx context.Context, email string) (*en
 		&user.Email,
 		&user.Password,
 		&user.FullName,
+		&user.RoleCode,
 	)
 
 	if err != nil {
