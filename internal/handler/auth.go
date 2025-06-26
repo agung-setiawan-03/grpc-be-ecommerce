@@ -90,8 +90,17 @@ func (sh *authHandler) ChangePassword(ctx context.Context, req *auth.ChangePassw
 		}, nil
 	}
 
-	// Process Logout
+	// Process Change Password
 	resp, err := sh.authService.ChangePassword(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+
+	return resp, nil
+}
+
+func (sh *authHandler) GetProfile(ctx context.Context, req *auth.GetProfileRequest) (*auth.GetProfileResponse, error) {
+	resp, err := sh.authService.GetProfile(ctx, req)
 	if err != nil {
 		return nil, err
 	}
