@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"time"
 
 	"github.com/AgungSetiawan/grpc-be-ecommerce/internal/entity"
 )
@@ -11,6 +12,7 @@ import (
 type IAuthRepository interface {
 	GetUserByEmail(ctx context.Context, email string) (*entity.User, error)
 	InsertUser(ctx context.Context, user *entity.User) error
+	UpdateUserPassword(ctx context.Context, userId string, hashedNewPassword string, updateddBy string) error
 }
 
 type authRepository struct {
@@ -62,6 +64,23 @@ func (ar *authRepository) InsertUser(ctx context.Context, user *entity.User) err
 		user.DeletedAt,
 		user.DeletedBy,
 		user.IsDeleted,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+
+}
+
+func (ar *authRepository) UpdateUserPassword(ctx context.Context, userId string, hashedNewPassword string, updateddBy string) error {
+	_, err := ar.db.ExecContext(ctx,
+		`UPDATE "user" SET password = $1, updated_at = $2, updated_by = $3 WHERE id = $4`,
+		hashedNewPassword,
+		time.Now(),
+		updateddBy,
+		userId,
 	)
 
 	if err != nil {

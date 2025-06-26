@@ -23,6 +23,7 @@ type IAuthService interface {
 	Register(ctx context.Context, req *auth.RegisterRequest) (*auth.RegisterResponse, error)
 	Login(ctx context.Context, req *auth.LoginRequest) (*auth.LoginResponse, error)
 	Logout(ctx context.Context, req *auth.LogoutRequest) (*auth.LogoutResponse, error)
+	ChangePassword(ctx context.Context, req *auth.ChangePasswordRequest) (*auth.ChangePasswordResponse, error)
 }
 
 type authService struct {
@@ -133,6 +134,64 @@ func (as *authService) Logout(ctx context.Context, req *auth.LogoutRequest) (*au
 
 	return &auth.LogoutResponse{
 		Base: utils.SuccessResponse("Logout berhasil"),
+	}, nil
+}
+
+func (as *authService) ChangePassword(ctx context.Context, req *auth.ChangePasswordRequest) (*auth.ChangePasswordResponse, error) {
+	if req.NewPassword != req.NewPasswordConfirmation {
+		return &auth.ChangePasswordResponse{
+			Base: utils.BadRequestResponse("Password baru dan password konfirmasi tidak sama"),
+		}, nil
+
+	}
+
+	jwtToken, err := jwtentity.ParseTokenFromContext(ctx)
+
+	if err != nil {
+		return nil, err
+	}
+	claims, err := jwtentity.GetClaimsFromToken(jwtToken)
+
+	if err != nil {
+		return nil, err
+	}
+
+	user, err := as.authRepository.GetUserByEmail(ctx, claims.Email)
+
+	if err != nil {
+		return nil, err
+	}
+
+	if user == nil {
+		return &auth.ChangePasswordResponse{
+			Base: utils.BadRequestResponse("User tidak ditemukan"),
+		}, nil
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.OldPassword))
+	if err != nil {
+		if errors.Is(err, bcrypt.ErrMismatchedHashAndPassword) {
+			return &auth.ChangePasswordResponse{
+				Base: utils.BadRequestResponse("Password lama salah"),
+			}, nil
+		}
+		return nil, err
+	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), 10)
+
+	if err != nil {
+		return nil, err
+	}
+
+	err = as.authRepository.UpdateUserPassword(ctx, user.Id, string(hashedPassword), user.FullName)
+
+	if err != nil {
+		return nil, err
+	}
+
+	return &auth.ChangePasswordResponse{
+		Base: utils.SuccessResponse("Password berhasil diubah"),
 	}, nil
 }
 
