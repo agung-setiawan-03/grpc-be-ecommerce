@@ -207,7 +207,7 @@ func (ps *productService) ListProduct(ctx context.Context, req *product.ListProd
 			Name:        prod.Name,
 			Description: prod.Description,
 			Price:       prod.Price,
-			ImageUrl:    fmt.Sprintf("%s/product/%s", os.Getenv("SOTRAGE_SERVICE_URL"), prod.ImageFileName),
+			ImageUrl:    fmt.Sprintf("%s/product/%s", os.Getenv("STORAGE_SERVICE_URL"), prod.ImageFileName),
 		})
 	}
 
