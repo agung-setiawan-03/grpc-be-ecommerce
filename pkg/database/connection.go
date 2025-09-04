@@ -13,6 +13,11 @@ func ConnectDB(ctx context.Context, connStr string) *sql.DB {
 		panic(err)
 	}
 
+	db.SetConnMaxIdleTime(10 * 60)
+	db.SetConnMaxLifetime(30 * 60)
+	db.SetMaxIdleConns(10)
+	db.SetMaxOpenConns(100)
+
 	err = db.PingContext(ctx)
 	if err != nil {
 		panic(err)

@@ -12,6 +12,7 @@ import (
 	"github.com/AgungSetiawan/grpc-be-ecommerce/internal/repository"
 	"github.com/AgungSetiawan/grpc-be-ecommerce/internal/service"
 	"github.com/AgungSetiawan/grpc-be-ecommerce/pb/auth"
+	"github.com/AgungSetiawan/grpc-be-ecommerce/pb/product"
 	"github.com/AgungSetiawan/grpc-be-ecommerce/pkg/database"
 	"github.com/joho/godotenv"
 	gocache "github.com/patrickmn/go-cache"
@@ -22,7 +23,7 @@ import (
 func main() {
 	ctx := context.Background()
 	godotenv.Load()
-	list, err := net.Listen("tcp", ":8080")
+	list, err := net.Listen("tcp", ":50053")
 	if err != nil {
 		log.Panicf("Error when listening server: %v", err)
 	}
@@ -38,6 +39,10 @@ func main() {
 	authService := service.NewAuthService(authRepository, cacheService)
 	authHandler := handler.NewAuthHandler(authService)
 
+	productRepository := repository.NewProductRepository(db)
+	productService := service.NewProductService(productRepository)
+	productHandler := handler.NewProductHandler(productService)
+
 	serv := grpc.NewServer(
 		grpc.ChainUnaryInterceptor(
 			grpcmiddleware.ErrMiddleware,
@@ -46,13 +51,14 @@ func main() {
 	)
 
 	auth.RegisterAuthServiceServer(serv, authHandler)
+	product.RegisterProductServiceServer(serv, productHandler)
 
 	if os.Getenv("ENVIRONMENT") == "development" {
 		reflection.Register(serv)
 		log.Println("Reflection is registered")
 	}
 
-	log.Println("Server is running on port 8080")
+	log.Println("Server is running on port 50053")
 	if err := serv.Serve(list); err != nil {
 		log.Panicf("Server is error: %v", err)
 	}

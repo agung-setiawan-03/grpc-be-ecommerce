@@ -1,1 +1,11 @@
+COMMAND GENERATE PROTO BUF :
 protoc --go_out=./pb --go-grpc_out=./pb --proto_path=./proto --go_opt=paths=source_relative --go-grpc_opt=paths=source_relative auth/auth.proto
+
+
+COMMAND RUN BACKEND SERVICE WHEN USING FE :
+"C:\grpcwebproxy\grpcwebproxy.exe" --backend_addr=localhost:50053 --server_bind_address=0.0.0.0 --server_http_debug_port=8081 --run_tls_server=false --backend_max_call_recv_msg_size=577659248 --allow_all_origins
+
+COMMAND GENERATE PROTO BUF FE :
+npx protoc --ts_out ./pb --proto_path ./proto common/pagination.proto       
+
+CLIENT -> API -> GRPC_WEB_PROXY (8081) -> SERVER (50053)

@@ -13,8 +13,16 @@ type authMiddleware struct {
 	cacheService *gocache.Cache
 }
 
+var publicAPIs = map[string]bool{
+	"/auth.AuthService/Login":                   true,
+	"/auth.AuthService/Register":                true,
+	"/product.ProductService/DetailProduct":     true,
+	"/product.ProductService/ListProduct":       true,
+	"/product.ProductService/HighlightProducts": true,
+}
+
 func (am *authMiddleware) AuthMiddleware(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp any, err error) {
-	if info.FullMethod == "/auth.AuthService/Login" || info.FullMethod == "/auth.AuthService/Register" {
+	if publicAPIs[info.FullMethod] {
 		return handler(ctx, req)
 	}
 
