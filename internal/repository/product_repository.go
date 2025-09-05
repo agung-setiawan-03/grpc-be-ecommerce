@@ -5,13 +5,16 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/AgungSetiawan/grpc-be-ecommerce/internal/entity"
 	"github.com/AgungSetiawan/grpc-be-ecommerce/pb/common"
+	"github.com/AgungSetiawan/grpc-be-ecommerce/pkg/database"
 )
 
 type IProductRepository interface {
+	WithTransaction(tx *sql.Tx) IProductRepository
 	CreateNewProduct(ctx context.Context, product *entity.Product) error
 	GetProductById(ctx context.Context, id string) (*entity.Product, error)
 	UpdateProduct(ctx context.Context, product *entity.Product) error
@@ -19,10 +22,11 @@ type IProductRepository interface {
 	GetProductsPagination(ctx context.Context, pagination *common.PaginationRequest) ([]*entity.Product, *common.PaginationResponse, error)
 	GetProductsPaginationAdmin(ctx context.Context, pagination *common.PaginationRequest) ([]*entity.Product, *common.PaginationResponse, error)
 	GetProductsHighlight(ctx context.Context) ([]*entity.Product, error)
+	GetProducstByIds(ctx context.Context, ids []string) ([]*entity.Product, error)
 }
 
 type productRepository struct {
-	db *sql.DB
+	db database.DatabaseQuery
 }
 
 func (pr *productRepository) CreateNewProduct(ctx context.Context, product *entity.Product) error {
@@ -280,7 +284,47 @@ func (pr *productRepository) GetProductsHighlight(ctx context.Context) ([]*entit
 	return products, nil
 }
 
-func NewProductRepository(db *sql.DB) IProductRepository {
+func (pr *productRepository) GetProducstByIds(ctx context.Context, ids []string) ([]*entity.Product, error) {
+	queryIds := make([]string, len(ids))
+	for i, id := range ids {
+		queryIds[i] = fmt.Sprintf("'%s'", id)
+	}
+	rows, err := pr.db.QueryContext(
+		ctx,
+		fmt.Sprintf(`SELECT id, name, price, image_file_name FROM products WHERE id IN (%s) AND is_deleted = false`, strings.Join(queryIds, ", ")),
+	)
+
+	if err != nil {
+		return nil, err
+	}
+
+	var products []*entity.Product = make([]*entity.Product, 0)
+	for rows.Next() {
+		var productEntity entity.Product
+		err = rows.Scan(
+			&productEntity.Id,
+			&productEntity.Name,
+			&productEntity.Price,
+			&productEntity.ImageFileName,
+		)
+
+		if err != nil {
+			return nil, err
+		}
+
+		products = append(products, &productEntity)
+	}
+
+	return products, nil
+}
+
+func (pr *productRepository) WithTransaction(tx *sql.Tx) IProductRepository {
+	return &productRepository{
+		db: tx,
+	}
+}
+
+func NewProductRepository(db database.DatabaseQuery) IProductRepository {
 	return &productRepository{
 		db: db,
 	}

@@ -185,7 +185,7 @@ func (cs *cartService) UpdateCartQuantity(ctx context.Context, req *cart.UpdateC
 		}, nil
 	}
 	now := time.Now()
-	cartEntity.Quantity = cartEntity.Quantity + int(req.NewQuantity)
+	cartEntity.Quantity = int(req.NewQuantity)
 	cartEntity.UpdatedAt = &now
 	cartEntity.UpdatedBy = &claims.FullName
 

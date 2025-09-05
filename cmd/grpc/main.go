@@ -13,17 +13,20 @@ import (
 	"github.com/AgungSetiawan/grpc-be-ecommerce/internal/service"
 	"github.com/AgungSetiawan/grpc-be-ecommerce/pb/auth"
 	"github.com/AgungSetiawan/grpc-be-ecommerce/pb/cart"
+	"github.com/AgungSetiawan/grpc-be-ecommerce/pb/order"
 	"github.com/AgungSetiawan/grpc-be-ecommerce/pb/product"
 	"github.com/AgungSetiawan/grpc-be-ecommerce/pkg/database"
 	"github.com/joho/godotenv"
 	gocache "github.com/patrickmn/go-cache"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
+	"github.com/xendit/xendit-go"
 )
 
 func main() {
 	ctx := context.Background()
 	godotenv.Load()
+	xendit.Opt.SecretKey = os.Getenv("XENDIT_SECRET_KEY")
 	list, err := net.Listen("tcp", ":50053")
 	if err != nil {
 		log.Panicf("Error when listening server: %v", err)
@@ -48,6 +51,10 @@ func main() {
 	cartService := service.NewCartService(productRepository, cartRepository)
 	cartHandler := handler.NewCartHandler(cartService)
 
+	orderRepository := repository.NewOrderRepository(db)
+	orderService := service.NewOrderService(db, orderRepository, productRepository)
+	orderHandler := handler.NewOrderHandler(orderService)
+
 	serv := grpc.NewServer(
 		grpc.ChainUnaryInterceptor(
 			grpcmiddleware.ErrMiddleware,
@@ -58,6 +65,7 @@ func main() {
 	auth.RegisterAuthServiceServer(serv, authHandler)
 	product.RegisterProductServiceServer(serv, productHandler)
 	cart.RegisterCartServiceServer(serv, cartHandler)
+	order.RegisterOrderServiceServer(serv, orderHandler)
 
 	if os.Getenv("ENVIRONMENT") == "development" {
 		reflection.Register(serv)

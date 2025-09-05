@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"log"
 	"mime"
 	"net/http"
@@ -8,8 +9,12 @@ import (
 	"path"
 
 	"github.com/AgungSetiawan/grpc-be-ecommerce/internal/handler"
+	"github.com/AgungSetiawan/grpc-be-ecommerce/internal/repository"
+	"github.com/AgungSetiawan/grpc-be-ecommerce/internal/service"
+	"github.com/AgungSetiawan/grpc-be-ecommerce/pkg/database"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/joho/godotenv"
 )
 
 func handleGetFileName(c *fiber.Ctx) error {
@@ -39,11 +44,19 @@ func handleGetFileName(c *fiber.Ctx) error {
 }
 
 func main() {
+	godotenv.Load()
+	ctx := context.Background()
 	app := fiber.New()
+
+	db := database.ConnectDB(ctx, os.Getenv("DB_URL"))
+	orderRepository := repository.NewOrderRepository(db)
+	webhookService := service.NewWebhookService(orderRepository)
+	webhookHandler := handler.NewWebhookHandler(webhookService)
 
 	app.Use(cors.New())
 	app.Get("/storage/product/:filename", handleGetFileName)
 	app.Post("/product/upload", handler.UploadProductImageHandler)
+	app.Post("/webhook/xendit/invoice", webhookHandler.ReceiveInvoice)
 
 	app.Listen(":3000")
 }

@@ -2,25 +2,54 @@ package entity
 
 import "time"
 
-type OrderDetail struct {
-	OrderID         string
-	CreatedAt       time.Time
-	UserName        string
-	UserEmail       string
-	PaymentMethod   string
-	ShippingAddress string
-	ProductID       string
-	ProductName     string
-	CategoryName    string
-	Quantity        int
-	Price           float64
+const (
+	OrderStatusCodeUnpaid = "unpaid"
+	OrderStatusCodePaid   = "paid"
+	OrderStatusShipped    = "shipped"
+	OrderStatusDone       = "done"
+	OrderStatusExpired    = "expired"
+)
+
+type Order struct {
+	Id                   string
+	Number               string
+	UserId               string
+	OrderStatusCode      string
+	UserFullName         string
+	Address              string
+	PhoneNumber          string
+	Notes                *string
+	Total                float64
+	ExpiredAt            *time.Time
+	CreatedAt            time.Time
+	CreatedBy            string
+	UpdatedAt            *time.Time
+	UpdatedBy            *string
+	DeletedAt            *time.Time
+	DeletedBy            *string
+	IsDeleted            bool
+	XenditInvoiceId      *string
+	XenditInvoiceUrl     *string
+	XenditPaidAt         *time.Time
+	XenditPaymentMethod  *string
+	XenditPaymentChannel *string
+
+	Items []*OrderItem
 }
 
-type VendorSalesReport struct {
-	VendorID          string
-	VendorName        string
-	TotalOrders       int
-	TotalRevenue      float64
-	AvgQuantityPerTxn float64
-	TopSellingProduct string
+type OrderItem struct {
+	Id                   string
+	ProductId            string
+	ProductName          string
+	ProductImageFileName string
+	ProductPrice         float64
+	Quantity             int64
+	OrderId              string
+	CreatedAt            time.Time
+	CreatedBy            string
+	UpdatedAt            *time.Time
+	UpdatedBy            *string
+	DeletedAt            *time.Time
+	DeletedBy            *string
+	IsDeleted            bool
 }
