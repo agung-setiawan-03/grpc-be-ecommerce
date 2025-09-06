@@ -255,7 +255,34 @@ func (pr *productRepository) GetProductsHighlight(ctx context.Context) ([]*entit
 
 	rows, err := pr.db.QueryContext(
 		ctx,
-		`SELECT id, name, description, price, image_file_name FROM products WHERE is_deleted = false ORDER BY created_at DESC LIMIT 3`,
+		`
+	SELECT 
+		id, 
+		name, 
+		description, 
+		price, 
+		image_file_name
+	FROM 
+		products 
+	WHERE 
+		id IN (
+			SELECT 
+				p.id
+			FROM 
+				products p
+			JOIN 
+				public.order_item oi 
+				ON oi.product_id = p.id
+			WHERE 
+				p.is_deleted = false 
+				AND oi.is_deleted = false 
+			GROUP BY
+				p.id 
+			ORDER BY 
+				COUNT(*) DESC
+			LIMIT 4
+		);
+	`,
 	)
 
 	if err != nil {

@@ -23,5 +23,6 @@ func ConnectDB(ctx context.Context, connStr string) *sql.DB {
 		panic(err)
 	}
 
+	
 	return db
 }

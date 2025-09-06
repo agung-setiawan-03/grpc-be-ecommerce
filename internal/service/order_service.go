@@ -24,6 +24,8 @@ type IOrderService interface {
 	CreateOrder(ctx context.Context, req *order.CreateOrderRequest) (*order.CreateOrderResponse, error)
 	ListOrderAdmin(ctx context.Context, req *order.ListOrderAdminRequest) (*order.ListOrderAdminResponse, error)
 	ListOrder(ctx context.Context, req *order.ListOrderRequest) (*order.ListOrderResponse, error)
+	DetailOrder(ctx context.Context, req *order.DetailOrderRequest) (*order.DetailOrderResponse, error)
+	UpdateOrderStatus(ctx context.Context, req *order.UpdateOrderStatusRequest) (*order.UpdateOrderStatusResponse, error)
 }
 
 type orderService struct {
@@ -284,6 +286,136 @@ func (os *orderService) ListOrder(ctx context.Context, req *order.ListOrderReque
 		Base:       utils.SuccessResponse("Berhasil Mendapatkan List Order"),
 		Pagination: metadata,
 		Items:      items,
+	}, nil
+}
+
+func (os *orderService) DetailOrder(ctx context.Context, req *order.DetailOrderRequest) (*order.DetailOrderResponse, error) {
+	claims, err := jwtentity.GetClaimsFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	orderEntity, err := os.orderRepository.GetOrderById(ctx, req.Id)
+	if err != nil {
+		return nil, err
+	}
+
+	if claims.Role != entity.UserRoleAdmin && claims.Subject != orderEntity.UserId {
+		return &order.DetailOrderResponse{
+			Base: utils.BadRequestResponse("User id tidak sesuai dengan order"),
+		}, nil
+	}
+
+	notes := ""
+	if orderEntity.Notes != nil {
+		notes = *orderEntity.Notes
+	}
+
+	xenditInvoiceUrl := ""
+	if orderEntity.XenditInvoiceUrl != nil {
+		xenditInvoiceUrl = *orderEntity.XenditInvoiceUrl
+	}
+
+	orderStatusCode := orderEntity.OrderStatusCode
+	if orderEntity.OrderStatusCode == entity.OrderStatusCodeUnpaid && time.Now().After(*orderEntity.ExpiredAt) {
+		orderStatusCode = entity.OrderStatusExpired
+	}
+
+	items := make([]*order.DetailOrderResponseItem, 0)
+	for _, oi := range orderEntity.Items {
+		items = append(items, &order.DetailOrderResponseItem{
+			Id:       oi.ProductId,
+			Name:     oi.ProductName,
+			Price:    oi.ProductPrice,
+			Quantity: oi.Quantity,
+		})
+	}
+	return &order.DetailOrderResponse{
+		Base:              utils.SuccessResponse("Berhasil Mendapatkan Detail Order"),
+		Id:                orderEntity.Id,
+		Number:            orderEntity.Number,
+		UserFullName:      orderEntity.UserFullName,
+		Address:           orderEntity.Address,
+		PhoneNumber:       orderEntity.PhoneNumber,
+		Notes:             notes,
+		OrderStatusCode:   orderStatusCode,
+		CreatedAt:         timestamppb.New(orderEntity.CreatedAt),
+		XenditInvoinceUrl: xenditInvoiceUrl,
+		Items:             items,
+		Total:             orderEntity.Total,
+		ExpiredAt:         timestamppb.New(*orderEntity.ExpiredAt),
+	}, nil
+
+}
+
+func (os *orderService) UpdateOrderStatus(ctx context.Context, req *order.UpdateOrderStatusRequest) (*order.UpdateOrderStatusResponse, error) {
+	claims, err := jwtentity.GetClaimsFromContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	orderEntity, err := os.orderRepository.GetOrderById(ctx, req.OrderId)
+	if err != nil {
+		return nil, err
+	}
+
+	if orderEntity == nil {
+		return &order.UpdateOrderStatusResponse{
+			Base: utils.NotFoundResponse("Order tidak ditemukan"),
+		}, nil
+	}
+
+	if claims.Role != entity.UserRoleAdmin && orderEntity.UserId != claims.Subject {
+		return &order.UpdateOrderStatusResponse{
+			Base: utils.BadRequestResponse("User id tidak sesuai dengan order"),
+		}, nil
+	}
+
+	if req.NewStatusCode == entity.OrderStatusCodePaid {
+		if claims.Role != entity.UserRoleAdmin || orderEntity.OrderStatusCode != entity.OrderStatusCodeUnpaid {
+			return &order.UpdateOrderStatusResponse{
+				Base: utils.BadRequestResponse("Status Tidak valid"),
+			}, nil
+		}
+
+	} else if req.NewStatusCode == entity.OrderStatusCanceled {
+		if orderEntity.OrderStatusCode != entity.OrderStatusCodeUnpaid {
+			return &order.UpdateOrderStatusResponse{
+				Base: utils.BadRequestResponse("Status Tidak valid"),
+			}, nil
+		}
+
+	} else if req.NewStatusCode == entity.OrderStatusShipped {
+		if claims.Role != entity.UserRoleAdmin || orderEntity.OrderStatusCode != entity.OrderStatusCodePaid {
+			return &order.UpdateOrderStatusResponse{
+				Base: utils.BadRequestResponse("Status Tidak valid"),
+			}, nil
+		}
+
+	} else if req.NewStatusCode == entity.OrderStatusDone {
+		if orderEntity.OrderStatusCode != entity.OrderStatusShipped {
+			return &order.UpdateOrderStatusResponse{
+				Base: utils.BadRequestResponse("Status Tidak valid"),
+			}, nil
+		}
+	} else {
+		return &order.UpdateOrderStatusResponse{
+			Base: utils.BadRequestResponse("Status tidak valid"),
+		}, nil
+	}
+
+	now := time.Now()
+	orderEntity.OrderStatusCode = req.NewStatusCode
+	orderEntity.UpdatedAt = &now
+	orderEntity.UpdatedBy = &claims.Subject
+
+	err = os.orderRepository.UpdateOrder(ctx, orderEntity)
+	if err != nil {
+		return nil, err
+	}
+
+	return &order.UpdateOrderStatusResponse{
+		Base: utils.SuccessResponse("Berhasil Mengubah Status Order"),
 	}, nil
 }
 
